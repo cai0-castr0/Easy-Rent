@@ -1,15 +1,10 @@
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 
 public class Locadora {
 
     private static final String URL = "jdbc:postgresql://localhost:5432/Easy_Rent";
     private static final String USER = "postgres";
-    private static final String PASSWORD = "********";
+    private static final String PASSWORD = "Astro@0712";
 
     private static Connection conectar() {
         Connection conexao = null;
@@ -26,13 +21,13 @@ public class Locadora {
         return conexao;
     }
 
-    public static void inserirCliente(String cpf, String nome, String cnh, String telefone, String email) {
+    public static int inserirCliente(String cpf, String nome, String cnh, String telefone, String email) {
         String sql = "INSERT INTO Cliente (cpf, nome, cnh, telefone, email) VALUES (?, ?, ?, ?, ?)";
 
         try (Connection conn = conectar();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql, java.sql.Statement.RETURN_GENERATED_KEYS)) {
 
-            if (conn == null) return;
+            if (conn == null) return -1;
 
             pstmt.setString(1, cpf);
             pstmt.setString(2, nome);
@@ -44,6 +39,12 @@ public class Locadora {
 
             if (linhasAfetadas > 0) {
                 System.out.println("Cliente '" + nome + "' inserido com sucesso!");
+                try (java.sql.ResultSet rs = pstmt.getGeneratedKeys()) {
+                    if (rs.next()) {
+                        int novoId = rs.getInt(1);
+                        return novoId;
+                    }
+                }
             } else {
                 System.out.println("Nenhuma linha afetada. Verifique os dados.");
             }
@@ -51,6 +52,7 @@ public class Locadora {
         } catch (SQLException e) {
             System.err.println("Erro ao inserir cliente: " + e.getMessage());
         }
+        return -1;
     }
 
 
@@ -139,19 +141,78 @@ public class Locadora {
         }
     }
 
+    public static void calcularMultaLocacao(int idLocacao) {
+        String sql = "{ ? = call calcular_multa(?::integer) }";
+
+        try (Connection conn = conectar();
+             CallableStatement cstmt = conn.prepareCall(sql)) {
+
+            if (conn == null) return;
+
+            cstmt.registerOutParameter(1, Types.NUMERIC);
+
+            cstmt.setInt(2, idLocacao);
+
+            cstmt.execute();
+
+            java.math.BigDecimal resultado = cstmt.getBigDecimal(1);
+            double multa = (resultado != null) ? resultado.doubleValue() : 0.0;
+
+            System.out.println("Multa calculada para Locação ID " + idLocacao + ": R$ " + String.format("%.2f", multa));
+
+        } catch (SQLException e) {
+            System.err.println("Erro ao calcular multa: " + e.getMessage());
+        }
+    }
+
+    public static void finalizarLocacao(int idLocacao, int idFuncionario, int kmFinal, double multa, double valorTotal) {
+        String sql = "CALL finalizar_locacao_sql(?, ?::date, ?, ?::numeric, ?::numeric, ?)";
+
+        java.sql.Date dataAtual = new java.sql.Date(System.currentTimeMillis());
+
+        try (Connection conn = conectar();
+             CallableStatement cstmt = conn.prepareCall(sql)) {
+
+            if (conn == null) return;
+
+            cstmt.setInt(1, idLocacao);
+            cstmt.setDate(2, dataAtual);
+            cstmt.setInt(3, kmFinal);
+            cstmt.setDouble(4, multa);
+            cstmt.setDouble(5, valorTotal);
+            cstmt.setInt(6, idFuncionario);
+
+            cstmt.execute();
+
+            System.out.println("Locação ID " + idLocacao + " finalizada via Banco de Dados!");
+
+        } catch (SQLException e) {
+            System.err.println("Erro ao chamar procedure: " + e.getMessage());
+        }
+    }
+
     public static void main(String[] args) {
 
         System.out.println("--- CREATE ---");
-        inserirCliente("22233344455", "Novo Cliente Teste", "11223344556", "5531987654321", "novo.teste@email.com");
-        int idClienteTeste = 3;
+        int idReal = inserirCliente("55544433322", "Novo Cliente Teste", "99887766554", "5531987654321", "novo.teste@email.com");
 
-        System.out.println("\n--- UPDATE ---");
-        atualizarTelefoneCliente(idClienteTeste, "559988776655");
-        listarClientesComLocacoes();
+        if (idReal != -1) {
+            System.out.println("\n--- UPDATE ---");
+            atualizarTelefoneCliente(idReal, "559988776655");
+            listarClientesComLocacoes();
 
+            System.out.println("\n--- DELETE ---");
+            deletarCliente(idReal);
+            deletarCliente(idReal);
 
-        System.out.println("\n--- DELETE ---");
-        deletarCliente(idClienteTeste);
-        deletarCliente(idClienteTeste);
+            System.out.println("\n--- FUNCTION ---");
+            calcularMultaLocacao(1);
+
+            System.out.println("\n--- PROCEDURE ---");
+            finalizarLocacao(1, 2, 10800, 80.00, 480.00);
+
+        } else {
+            System.out.println("Não foi possível continuar o teste.");
+        }
     }
 }

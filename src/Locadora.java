@@ -55,6 +55,92 @@ public class Locadora {
         return -1;
     }
 
+    public static int inserirCarro(String placa, String modelo, int ano, String cor, String status, int idCategoria) {
+        String sql = "INSERT INTO Carro (placa, modelo, ano, cor, status, id_categoria) VALUES (?, ?, ?, ?, ?, ?)";
+
+        try (Connection conn = conectar();
+             PreparedStatement pstmt = conn.prepareStatement(sql, java.sql.Statement.RETURN_GENERATED_KEYS)) {
+
+            if (conn == null) return -1;
+
+            pstmt.setString(1, placa);
+            pstmt.setString(2, modelo);
+            pstmt.setInt(3, ano);
+            pstmt.setString(4, cor);
+            pstmt.setString(5, status);
+            pstmt.setInt(6, idCategoria);
+
+            int linhasAfetadas = pstmt.executeUpdate();
+
+            if (linhasAfetadas > 0) {
+                System.out.println("Carro '" + modelo + "' (" + placa + ") inserido com sucesso!");
+                try (java.sql.ResultSet rs = pstmt.getGeneratedKeys()) {
+                    if (rs.next()) {
+                        return rs.getInt(1);
+                    }
+                }
+            } else {
+                System.out.println("Nenhuma linha afetada ao inserir carro.");
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Erro ao inserir carro: " + e.getMessage());
+        }
+        return -1;
+    }
+
+    public static int inserirCategoria(String nome, double valorDiaria) {
+        String sql = "INSERT INTO Categoria (nome, valor_diaria) VALUES (?, ?)";
+
+        try (Connection conn = conectar();
+             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+
+            if (conn == null) return -1;
+
+            pstmt.setString(1, nome);
+            pstmt.setDouble(2, valorDiaria);
+
+            int linhasAfetadas = pstmt.executeUpdate();
+
+            if (linhasAfetadas > 0) {
+                System.out.println("Categoria '" + nome + "' inserida com sucesso!");
+                try (ResultSet rs = pstmt.getGeneratedKeys()) {
+                    if (rs.next()) return rs.getInt(1);
+                }
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Erro ao inserir categoria: " + e.getMessage());
+        }
+        return -1;
+    }
+
+    public static int inserirFuncionario(String cpf, String nome, String cargo) {
+        String sql = "INSERT INTO Funcionario (cpf, nome, cargo) VALUES (?, ?, ?)";
+
+        try (Connection conn = conectar();
+             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+
+            if (conn == null) return -1;
+
+            pstmt.setString(1, cpf);
+            pstmt.setString(2, nome);
+            pstmt.setString(3, cargo);
+
+            int linhasAfetadas = pstmt.executeUpdate();
+
+            if (linhasAfetadas > 0) {
+                System.out.println("Funcionário '" + nome + "' inserido com sucesso!");
+                try (ResultSet rs = pstmt.getGeneratedKeys()) {
+                    if (rs.next()) return rs.getInt(1);
+                }
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Erro ao inserir funcionário: " + e.getMessage());
+        }
+        return -1;
+    }
 
     public static void listarClientesComLocacoes() {
         String sql = "SELECT C.nome AS Cliente, CR.modelo AS Carro, L.data_retirada " +
@@ -118,6 +204,30 @@ public class Locadora {
         }
     }
 
+    public static void atualizarStatusCarro(int idCarro, String novoStatus) {
+        String sql = "UPDATE Carro SET status = ? WHERE id_carro = ?";
+
+        try (Connection conn = conectar();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            if (conn == null) return;
+
+            pstmt.setString(1, novoStatus);
+            pstmt.setInt(2, idCarro);
+
+            int linhasAfetadas = pstmt.executeUpdate();
+
+            if (linhasAfetadas > 0) {
+                System.out.println("Status do Carro ID " + idCarro + " atualizado para: " + novoStatus);
+            } else {
+                System.out.println("Carro ID " + idCarro + " não encontrado.");
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Erro ao atualizar status do carro: " + e.getMessage());
+        }
+    }
+
     public static void deletarCliente(int idCliente) {
         String sql = "DELETE FROM Cliente WHERE id_cliente = ?";
 
@@ -138,6 +248,52 @@ public class Locadora {
 
         } catch (SQLException e) {
             System.err.println("Erro ao deletar cliente (ID " + idCliente + "): " + e.getMessage());
+        }
+    }
+
+    public static void deletarCarro(int idCarro) {
+        String sql = "DELETE FROM Carro WHERE id_carro = ?";
+
+        try (Connection conn = conectar();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            if (conn == null) return;
+
+            pstmt.setInt(1, idCarro);
+
+            int linhasAfetadas = pstmt.executeUpdate();
+
+            if (linhasAfetadas > 0) {
+                System.out.println("Carro ID " + idCarro + " excluído com sucesso.");
+            } else {
+                System.out.println("Carro ID " + idCarro + " não encontrado.");
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Erro ao deletar carro: " + e.getMessage());
+        }
+    }
+
+    public static void deletarFuncionario(int idFuncionario) {
+        String sql = "DELETE FROM Funcionario WHERE id_funcionario = ?";
+
+        try (Connection conn = conectar();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            if (conn == null) return;
+
+            pstmt.setInt(1, idFuncionario);
+
+            int linhasAfetadas = pstmt.executeUpdate();
+
+            if (linhasAfetadas > 0) {
+                System.out.println("Funcionário ID " + idFuncionario + " excluído com sucesso.");
+            } else {
+                System.out.println("Funcionário ID " + idFuncionario + " não encontrado.");
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Erro ao deletar funcionário: " + e.getMessage());
         }
     }
 
@@ -194,7 +350,10 @@ public class Locadora {
     public static void main(String[] args) {
 
         System.out.println("--- CREATE ---");
-        int idReal = inserirCliente("55544433322", "Novo Cliente Teste", "99887766554", "5531987654321", "novo.teste@email.com");
+        int idReal = inserirCliente("55544433322", "Adimilson", "99887766554", "5531987654321", "novo.teste@email.com");
+        int idCarro = inserirCarro("TEST9", "VW Gol", 2022, "Branco", "Disponível", 1);
+        int idCat = inserirCategoria("4X4", 150.00);
+        int idFunc = inserirFuncionario("99988877700", "Funcionario Java", "Estagiário");
 
         if (idReal != -1) {
             System.out.println("\n--- UPDATE ---");
@@ -203,7 +362,8 @@ public class Locadora {
 
             System.out.println("\n--- DELETE ---");
             deletarCliente(idReal);
-            deletarCliente(idReal);
+            deletarCarro(idCarro);
+            deletarFuncionario(idFunc);
 
             System.out.println("\n--- FUNCTION ---");
             calcularMultaLocacao(1);
@@ -212,7 +372,9 @@ public class Locadora {
             finalizarLocacao(1, 2, 10800, 80.00, 480.00);
 
         } else {
+
             System.out.println("Não foi possível continuar o teste.");
+
         }
     }
 }
